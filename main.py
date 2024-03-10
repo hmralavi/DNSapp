@@ -30,31 +30,49 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.begzar_btn.clicked.connect(lambda: self.set_dns(BEGZAR))
 
     def set_dns(self, dns):
-        primary_dns = lambda ip: f'netsh interface ipv4 set dns name="Wi-Fi" static {ip} primary'
-        secondary_dns = lambda ip: f'netsh interface ipv4 add dns name="Wi-Fi" {ip} index=2'
+        btncolor = "background-color: rgb(85, 255, 0)"
+        primary_dns = lambda ip: f'netsh interface ipv4 add dnsservers name="Wi-Fi" {ip} index=1'
+        secondary_dns = lambda ip: f'netsh interface ipv4 add dnsservers name="Wi-Fi" {ip} index=2'
+
+        # set background color of all buttons to default color
+        for btn in self.children()[1].children():
+            if "_btn" in btn.objectName():
+                btn.setStyleSheet(None)
+
+        # first clear dns server
+        self.run_cmd_command('netsh interface ipv4 set dnsservers name="Wi-Fi" source=dhcp')
+
+        # then set new dns servers
         if dns == NODNS:
-            self.run_cmd_command('netsh interface ipv4 set dns name="Wi-Fi" source=dhcp')
+            self.nodns_btn.setStyleSheet(btncolor)
         elif dns == CLOUDFLARE:
             self.run_cmd_command(primary_dns("1.1.1.1"))
             self.run_cmd_command(secondary_dns("1.0.0.1"))
+            self.cloudflare_btn.setStyleSheet(btncolor)
         elif dns == GOOGLE:
             self.run_cmd_command(primary_dns("8.8.8.8"))
             self.run_cmd_command(secondary_dns("8.8.4.4"))
+            self.google_btn.setStyleSheet(btncolor)
         elif dns == ELECTRO:
             self.run_cmd_command(primary_dns("78.157.42.100"))
             self.run_cmd_command(secondary_dns("78.157.42.101"))
+            self.electro_btn.setStyleSheet(btncolor)
         elif dns == RADAR:
             self.run_cmd_command(primary_dns("10.202.10.10"))
             self.run_cmd_command(secondary_dns("10.202.10.11"))
+            self.radar_btn.setStyleSheet(btncolor)
         elif dns == SHECAN:
             self.run_cmd_command(primary_dns("178.22.122.100"))
             self.run_cmd_command(secondary_dns("185.51.200.2"))
+            self.shecan_btn.setStyleSheet(btncolor)
         elif dns == DNS403:
             self.run_cmd_command(primary_dns("10.202.10.202"))
             self.run_cmd_command(secondary_dns("10.202.10.102"))
+            self.dns403_btn.setStyleSheet(btncolor)
         elif dns == BEGZAR:
             self.run_cmd_command(primary_dns("185.55.226.26"))
             self.run_cmd_command(secondary_dns("185.55.225.25"))
+            self.begzar_btn.setStyleSheet(btncolor)
 
     @staticmethod
     def run_cmd_command(command: str):
