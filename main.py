@@ -1,78 +1,57 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox
+from PyQt5 import QtCore
+from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton
 from qtui.mainwindow import Ui_MainWindow
 import subprocess
-
-NODNS = 0
-CLOUDFLARE = 1
-GOOGLE = 2
-ELECTRO = 3
-RADAR = 4
-SHECAN = 5
-DNS403 = 6
-BEGZAR = 7
+import json
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setupUi(self)
-        self.setup_connect_slots_signals()
+        self.dns_buttons_list = []
+        self.dns_buttons_list.append(self.btn_nodns)
+        self.create_buttons()
+        self.connect_signals()
 
-    def setup_connect_slots_signals(self):
-        self.nodns_btn.clicked.connect(lambda: self.set_dns(NODNS))
-        self.cloudflare_btn.clicked.connect(lambda: self.set_dns(CLOUDFLARE))
-        self.google_btn.clicked.connect(lambda: self.set_dns(GOOGLE))
-        self.electro_btn.clicked.connect(lambda: self.set_dns(ELECTRO))
-        self.radar_btn.clicked.connect(lambda: self.set_dns(RADAR))
-        self.shecan_btn.clicked.connect(lambda: self.set_dns(SHECAN))
-        self.dns403_btn.clicked.connect(lambda: self.set_dns(DNS403))
-        self.begzar_btn.clicked.connect(lambda: self.set_dns(BEGZAR))
+    def create_buttons(self):
+        _translate = QtCore.QCoreApplication.translate
+        with open('config.json', 'r') as file:
+            config = json.load(file)
+        for dnsname in config["DNS List"].keys():
+            newbtn = QPushButton(self.centralwidget)
+            newbtn.setMinimumSize(QtCore.QSize(0, 50))
+            newbtn.setObjectName(f"btn_{dnsname}")
+            newbtn.setText(_translate("MainWindow", dnsname))
+            newbtn.setToolTip("\n".join((config["DNS List"][dnsname]["primary"], config["DNS List"][dnsname]["secondary"])))
+            self.verticalLayout.addWidget(newbtn)
+            self.dns_buttons_list.append(newbtn)
+        self.adaptor_name = config["Adaptor"]["name"]
+
+    def connect_signals(self):
+        for btn in self.dns_buttons_list:
+            btn.clicked.connect(self.set_dns)
 
     def set_dns(self, dns):
         btncolor = "background-color: rgb(85, 255, 0)"
-        primary_dns = lambda ip: f'netsh interface ipv4 add dnsservers name="Wi-Fi" {ip} index=1'
-        secondary_dns = lambda ip: f'netsh interface ipv4 add dnsservers name="Wi-Fi" {ip} index=2'
+        dns_command = lambda ip, index: f'netsh interface ipv4 add dnsservers name="{self.adaptor_name}" {ip} index={index}'
 
         # set background color of all buttons to default color
-        for btn in self.children()[1].children():
-            if "_btn" in btn.objectName():
-                btn.setStyleSheet(None)
+        for btn in self.dns_buttons_list:
+            btn.setStyleSheet(None)
 
         # first clear dns server
-        self.run_cmd_command('netsh interface ipv4 set dnsservers name="Wi-Fi" source=dhcp')
+        self.run_cmd_command(f'netsh interface ipv4 set dnsservers name="{self.adaptor_name}" source=dhcp')
 
         # then set new dns servers
-        if dns == NODNS:
-            self.nodns_btn.setStyleSheet(btncolor)
-        elif dns == CLOUDFLARE:
-            self.run_cmd_command(primary_dns("1.1.1.1"))
-            self.run_cmd_command(secondary_dns("1.0.0.1"))
-            self.cloudflare_btn.setStyleSheet(btncolor)
-        elif dns == GOOGLE:
-            self.run_cmd_command(primary_dns("8.8.8.8"))
-            self.run_cmd_command(secondary_dns("8.8.4.4"))
-            self.google_btn.setStyleSheet(btncolor)
-        elif dns == ELECTRO:
-            self.run_cmd_command(primary_dns("78.157.42.100"))
-            self.run_cmd_command(secondary_dns("78.157.42.101"))
-            self.electro_btn.setStyleSheet(btncolor)
-        elif dns == RADAR:
-            self.run_cmd_command(primary_dns("10.202.10.10"))
-            self.run_cmd_command(secondary_dns("10.202.10.11"))
-            self.radar_btn.setStyleSheet(btncolor)
-        elif dns == SHECAN:
-            self.run_cmd_command(primary_dns("178.22.122.100"))
-            self.run_cmd_command(secondary_dns("185.51.200.2"))
-            self.shecan_btn.setStyleSheet(btncolor)
-        elif dns == DNS403:
-            self.run_cmd_command(primary_dns("10.202.10.202"))
-            self.run_cmd_command(secondary_dns("10.202.10.102"))
-            self.dns403_btn.setStyleSheet(btncolor)
-        elif dns == BEGZAR:
-            self.run_cmd_command(primary_dns("185.55.226.26"))
-            self.run_cmd_command(secondary_dns("185.55.225.25"))
-            self.begzar_btn.setStyleSheet(btncolor)
+        clicked_btn = self.sender()
+        index = 0
+        for ip in clicked_btn.toolTip().split('\n'):
+            if ip != "":
+                index += 1
+                self.run_cmd_command(dns_command(ip, index))
+        clicked_btn.setStyleSheet(btncolor)
 
     @staticmethod
     def run_cmd_command(command: str):
@@ -96,10 +75,12 @@ if __name__ == '__main__':
     if qtapp is None:
         qtapp = QApplication(sys.argv)
 
+
     def my_excepthook(errtype, value, tback):  # this function captures runtime errors.
         print(errtype, value, tback)
         qtapp.exit()
         raise Exception
+
 
     sys.excepthook = my_excepthook
     win = MainWindow()
