@@ -10,3 +10,4 @@ Python 3.8.13 was used to create this app.
 You can install the required packages using pip:
 `pip install -r requirements.txt`
 
+IMPORTANT NOTE: you need to "run this program as admin" so it has permission to set DNS.
